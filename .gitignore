@@ -1,0 +1,13 @@
+.vscode
+*.csv
+*.pkl
+*.rar
+*_test.md
+
+catboost_info/
+*-pkl/
+
+__pycache__/
+
+tmp/
+
