@@ -11,3 +11,5 @@ __pycache__/
 
 tmp/
 
+*test*.md
+!test_suite_comments.md
