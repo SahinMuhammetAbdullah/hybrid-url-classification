@@ -13,3 +13,4 @@ tmp/
 
 *test*.md
 !test_suite_comments.md
+*iscx*/

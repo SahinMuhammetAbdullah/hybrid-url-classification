@@ -21,7 +21,7 @@ df.dropna(inplace=True)
 target_column = "URL_Type_obf_Type"
 df['binary_label'] = df[target_column].apply(lambda x: 0 if x in ["benign", "good"] else 1)
 df_malicious = df[df['binary_label'] == 1]
-df_malicious = df_malicious[~df_malicious[target_column].isin(["malicious", "spam"])]
+df_malicious = df_malicious[~df_malicious[target_column].isin(["malicious"])]
 
 features = df_malicious.drop(columns=[target_column, "binary_label"]).values
 labels = df_malicious[target_column].astype("category").cat.codes.values
@@ -81,5 +81,5 @@ model.save("multiclass_dqn_model")
 
 # --- 8. Adım: Son Test ---
 print("\n--- Eğitim Tamamlandı: Son Test ---")
-model = DQN.load("multiclass_dqn_model")
+model = DQN.load("multiclass_dqn_add_spam_model")
 evaluate_model(model, X_test, y_test, target_names=[str(i) for i in url_types])

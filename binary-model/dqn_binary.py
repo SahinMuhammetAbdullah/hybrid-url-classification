@@ -120,4 +120,4 @@ for checkpoint in checkpoint_intervals:
     evaluate_model(model, X_test, y_test)
     current_steps = checkpoint
 
-model.save("binary-pkl/binary_dqn_model2")
+model.save("binary-pkl/binary_dqn_model")
