@@ -17,22 +17,12 @@ class URLTypeClassificationEnv(gym.Env):
             dtype=np.float32
         )
 
-        def compute_class_weights(labels, min_weight=1.0, max_weight=None):
-            unique_classes, counts = np.unique(labels, return_counts=True)
-            total_samples = len(labels)
-            weights = {}
-            for cls, count in zip(unique_classes, counts):
-                weight = total_samples / (len(unique_classes) * count)
-                weight = max(min_weight, weight)
-                if max_weight is not None:
-                    weight = min(max_weight, weight)
-                weights[cls] = weight
-            return weights
-
         if class_weights is None:
-            class_weights = compute_class_weights(labels)
+            unique_classes, counts = np.unique(labels, return_counts=True)
+            class_weights = {cls: max(1.0, 1000 / count) for cls, count in zip(unique_classes, counts)}
         self.class_weights = class_weights
 
+        # Ajanın tahmin ve etiket geçmişini kaydetmek için
         self.predictions = []
         self.true_labels_log = []
 
@@ -47,36 +37,17 @@ class URLTypeClassificationEnv(gym.Env):
         self.predictions.append(action)
         self.true_labels_log.append(true_label)
 
-        # --- 3. Ağırlıklı Ceza ve Kısmi Doğruluk ---
-        # Sınıflar arası mesafeyi hesapla (basit örnek: sınıf farkı)
-        max_distance = len(self.class_weights) - 1
-        distance = abs(action - true_label)
-
-        # --- 4. Zaman / Episode Uzunluğuna Göre Değişen Ödül ---
-        progress_factor = self.current_index / len(self.features)
-
-        # --- 5. Sosyal veya Ortak Bilgi Ödülü ---
-        window_size = 5
-        recent_correct = 0
-        if len(self.predictions) >= window_size:
-            recent_correct = sum(
-                [p == t for p, t in zip(self.predictions[-window_size:], self.true_labels_log[-window_size:])]
-            )
-        social_factor = 1 + (recent_correct / window_size)
-
-        # Ödül Hesaplama
+        # Anlık ödül hesaplama: doğruysa sınıf ağırlığı kadar, yanlışsa sabit ceza
         if action == true_label:
-            reward = 20 * self.class_weights[true_label] * social_factor * (1 + progress_factor)
+            reward = 10 * self.class_weights[true_label]
         else:
-            # Yanlış tahmin cezası: sınıf mesafesi arttıkça ceza artar
-            penalty = -10 * self.class_weights[true_label] * (distance / max_distance) * (1 + progress_factor)
-            reward = penalty
+            reward = -5
 
         # Bir sonraki örneğe geç
         self.current_index = (self.current_index + 1) % len(self.features)
         done = self.current_index == 0
 
-        # Eğer tüm veri dönmüşse genel metrik bazlı ödül
+        # Eğer tüm veri dönmüşse F1, Precision, Recall bazlı genel ödül
         if done and len(self.predictions) > 0:
             reward = self.calculate_multimetric_reward()
             self.predictions = []
@@ -84,13 +55,12 @@ class URLTypeClassificationEnv(gym.Env):
 
         return self.features[self.current_index], reward, done, False, {}
 
-
     def calculate_multimetric_reward(self):
         if len(set(self.true_labels_log)) > 1:  # F1 anlamlı olsun
             precision = precision_score(self.true_labels_log, self.predictions, average='macro', zero_division=0)
             recall = recall_score(self.true_labels_log, self.predictions, average='macro', zero_division=0)
             f1 = f1_score(self.true_labels_log, self.predictions, average='macro', zero_division=0)
-            reward = (0.3 * precision + 0.2 * recall + 0.5 * f1) * 50  # daha etkili katkı için 30 çarpanı
+            reward = (precision + recall + f1) * 30  # daha etkili katkı için 30 çarpanı
         else:
-            reward = -20  # sınıf çeşitliliği yoksa cezalandır
+            reward = -10  # sınıf çeşitliliği yoksa cezalandır
         return reward

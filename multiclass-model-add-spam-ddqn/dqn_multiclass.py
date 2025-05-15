@@ -13,7 +13,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from env_url_type import URLTypeClassificationEnv
 
 # --- 1. Adım: Veri Setini Yükle ---
-data_path = "data/cleaned_dataV4.csv"
+data_path = "data/input_dataV4.csv"
 df = pd.read_csv(data_path)
 df.replace([np.inf, -np.inf], np.nan, inplace=True)
 df.dropna(inplace=True)
@@ -26,14 +26,14 @@ df_malicious = df_malicious[~df_malicious[target_column].isin(["malicious"])]
 features = df_malicious.drop(columns=[target_column, "binary_label"]).values
 labels = df_malicious[target_column].astype("category").cat.codes.values
 
-X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.3, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.6, random_state=42)
 
 # --- 2. Adım: Class Ağırlıkları Hesapla ---
 counts = Counter(y_train)
 class_weights = {cls: max(1.0, 1000 / count) for cls, count in counts.items()}
 
 # --- 3. Adım: Ortamı Tanımla ---
-env = DummyVecEnv([lambda: Monitor(URLTypeClassificationEnv(X_train, y_train, class_weights=None))])
+env = DummyVecEnv([lambda: Monitor(URLTypeClassificationEnv(X_train, y_train, class_weights=class_weights))])
 
 # --- 4. Adım: DQN Modeli Oluştur ---
 model = DQN(
@@ -48,10 +48,7 @@ model = DQN(
 
 # --- 5. Adım: Değerlendirme Fonksiyonu ---
 def evaluate_model(model, X_test, y_test, target_names):
-    unique_classes = np.unique(y_test)
-    equal_weights = {cls: 1.0 for cls in unique_classes}  # Ağırlıksız test
-    test_env = URLTypeClassificationEnv(X_test, y_test, class_weights=equal_weights)
-    
+    test_env = URLTypeClassificationEnv(X_test, y_test, class_weights=class_weights)
     obs, _ = test_env.reset()
     predictions, true_labels = [], []
 
@@ -61,11 +58,10 @@ def evaluate_model(model, X_test, y_test, target_names):
         true_labels.append(y_test[test_env.current_index])
         obs, _, done, _, _ = test_env.step(action)
         if done:
-            obs, _ = test_env.reset()
+            obs, _ = test_env.reset()  # Env bitince resetle, döngüyü bitirme!
 
     print("\n--- Test Sonuçları ---\n")
     print(classification_report(true_labels, predictions, target_names=target_names))
-
 
 # --- 6. Adım: Eğitim Döngüsü ---
 total_timesteps = 2_000_000
@@ -81,9 +77,9 @@ for checkpoint in checkpoint_intervals:
     current_steps = checkpoint
 
 # --- 7. Adım: Model Kaydet ---
-model.save("multiclass_dqn_modelV4")
+model.save("multiclass_ddqn_model")
 
 # --- 8. Adım: Son Test ---
 print("\n--- Eğitim Tamamlandı: Son Test ---")
-model = DQN.load("multiclass_dqn_modelV4")
+model = DQN.load("multiclass_ddqn_model")
 evaluate_model(model, X_test, y_test, target_names=[str(i) for i in url_types])

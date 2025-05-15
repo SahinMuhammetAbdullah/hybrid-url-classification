@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
 # ----- 1. Adım: Veri Setini Hazırla -----
-data_path = "data/input_data.csv"
+data_path = "data/input_dataV3.csv"
 df = pd.read_csv(data_path)
 df.replace([np.inf, -np.inf], np.nan, inplace=True)
 df.dropna(inplace=True)
@@ -120,4 +120,4 @@ for checkpoint in checkpoint_intervals:
     evaluate_model(model, X_test, y_test)
     current_steps = checkpoint
 
-model.save("binary-pkl/binary_dqn_model")
+model.save("binary-pkl/binary_dqn_modelV3")
