@@ -5,7 +5,8 @@ import pandas as pd
 from sklearn.metrics import (
     classification_report,
     roc_auc_score,
-    precision_recall_curve,
+    precision_score,
+    recall_score,
     cohen_kappa_score,
     log_loss,
     hamming_loss,
@@ -20,11 +21,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+from scipy.special import softmax 
+import torch
 
 # Model yükleme
 try:
-    rf_model = joblib.load("sistem-test/RF-DQN/rf_binary.pkl")
-    dqn_model = DQN.load("sistem-test/RF-DQN/multiclass_dqn_ozel6V4")
+    rf_model = joblib.load("sistem-test/RF-DQN/rf_binaryV7.pkl")
+    dqn_model = DQN.load("sistem-test/RF-DQN/multiclass_dqn_model7")
+    dqn_device = dqn_model.device
+    print(f"DQN modeli şu cihazda: {dqn_device}")
     print("Modeller başarıyla yüklendi.")
 except Exception as e:
     print(f"Model yüklenirken hata oluştu: {e}")
@@ -32,7 +37,7 @@ except Exception as e:
 
 # Veri yükleme ve ön işleme
 try:
-    df = pd.read_csv("data/cleaned_dataV4.csv")
+    df = pd.read_csv("data/cleaned_feature_data.csv")
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     df.dropna(inplace=True)
     print("Veri başarıyla yüklendi ve temizlendi.")
@@ -77,15 +82,23 @@ for i in range(len(X_test)):
     if rf_prediction == 0:
         final_predictions.append("benign")
     else:
-        # sadece malicious için multiclass tahmini yapılır
         try:
             obs = feature.values.flatten()
-            action, _ = dqn_model.predict(obs)
+            obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0).to(dqn_device)
+
+            with torch.no_grad():
+                q_values_tensor = dqn_model.policy.q_net(obs_tensor)
+            
+            q_values = q_values_tensor.cpu().detach().numpy().flatten()
+            
+            probs = softmax(q_values) 
+            action = np.argmax(probs)
             multiclass_label = label_map.get(int(action), "unknown")
             final_predictions.append(multiclass_label)
         except Exception as e:
             print(f"DQN tahmin hatası: {e}")
-            final_predictions.append("unknown")
+            final_predictions.append("unknown") # Hata durumunda bilinmeyen olarak ekle
+
 
 # Gerçek etiketleri normalize et
 y_test_corrected = ["benign" if label == "good" else label for label in y_test]
@@ -106,16 +119,19 @@ try:
     roc_auc = roc_auc_score(binary_true, binary_predictions)
     mcc = matthews_corrcoef(binary_true, binary_predictions)
     gini = 2 * roc_auc - 1
-
+    rec= recall_score(binary_true,binary_predictions,average="weighted")
+    pre= precision_score(binary_true,binary_predictions,average="weighted")
     acc = accuracy_score(binary_true, binary_predictions)
     balanced_acc = balanced_accuracy_score(binary_true, binary_predictions)
     jaccard = jaccard_score(binary_true, binary_predictions)
 
     print(f"Accuracy: {acc:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"Precision: {pre:.4f}")
+    print(f"Recall: {rec:.4f}")
+    
     print(f"Balanced Accuracy: {balanced_acc:.4f}")
     print(f"Jaccard Score: {jaccard:.4f}")
-
-    print(f"F1 Score: {f1:.4f}")
     print(f"ROC-AUC Score: {roc_auc:.4f}")
     print(f"Gini: {gini:.4f}")
     print(f"Matthews CorrCoef (MCC): {mcc:.4f}")
@@ -165,10 +181,18 @@ if filtered_preds:
     print(f"Hamming Loss: {hamming_loss(filtered_trues, filtered_preds):.4f}")
 
     acc_multi = accuracy_score(filtered_trues, filtered_preds)
+    rec_multi = recall_score(filtered_trues,filtered_preds,average="weighted")
+    pre_multi = precision_score(filtered_trues,filtered_preds,average="weighted")
+    f1_multi = f1_score(filtered_trues,filtered_preds,average="weighted")
+
     balanced_acc_multi = balanced_accuracy_score(filtered_trues, filtered_preds)
     jaccard_multi = jaccard_score(filtered_trues, filtered_preds, average="macro")
 
     print(f"Accuracy: {acc_multi:.4f}")
+    print(f"F1 Score: {f1_multi:.4f}")
+    print(f"Precision: {pre_multi:.4f}")
+    print(f"Recall: {rec_multi:.4f}")
+
     print(f"Balanced Accuracy: {balanced_acc_multi:.4f}")
     print(f"Jaccard Score (macro): {jaccard_multi:.4f}")
 
@@ -221,12 +245,20 @@ try:
     )
     print(f"Cohen's Kappa: {cohen_kappa_score(filtered_trues, filtered_preds):.4f}")
     print(f"Hamming Loss: {hamming_loss(filtered_trues, filtered_preds):.4f}")
-    
+
     acc_all = accuracy_score(filtered_trues, filtered_preds)
+    rec_all = recall_score(filtered_trues,filtered_preds,average="weighted")
+    pre_all = precision_score(filtered_trues,filtered_preds,average="weighted")
+    f1_all = f1_score(filtered_trues,filtered_preds,average="weighted")
+
+    print(f"Accuracy: {acc_all:.4f}")
+    print(f"F1 Score: {f1_all:.4f}")
+    print(f"Precision: {pre_all:.4f}")
+    print(f"Recall: {rec_all:.4f}")
+
     balanced_acc_all = balanced_accuracy_score(filtered_trues, filtered_preds)
     jaccard_all = jaccard_score(filtered_trues, filtered_preds, average="macro")
 
-    print(f"Accuracy: {acc_all:.4f}")
     print(f"Balanced Accuracy: {balanced_acc_all:.4f}")
     print(f"Jaccard Score (macro): {jaccard_all:.4f}")
 

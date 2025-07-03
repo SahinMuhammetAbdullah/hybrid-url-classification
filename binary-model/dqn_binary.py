@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
 # ----- 1. Adım: Veri Setini Hazırla -----
-data_path = "data/input_dataV3.csv"
+data_path = "data/cleaned_dataV4.csv"
 df = pd.read_csv(data_path)
 df.replace([np.inf, -np.inf], np.nan, inplace=True)
 df.dropna(inplace=True)
