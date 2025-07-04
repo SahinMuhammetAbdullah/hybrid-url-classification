@@ -1,0 +1,11 @@
+pandas
+numpy
+scikit-learn
+joblib
+stable-baselines3[extra]>=2.0.0
+gymnasium
+torch
+xgboost
+matplotlib
+seaborn
+scipy

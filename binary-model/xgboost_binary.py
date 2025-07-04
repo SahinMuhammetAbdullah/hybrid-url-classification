@@ -5,7 +5,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from xgboost import XGBClassifier  # type: ignore
 
 # ----- Dosya Yollarını Ayarla -----
-data_path = "data/cleaned_dataV4.csv"
+data_path = "data/cleaned_feature_data.csv"
 
 # ----- 1. Adım: Veri Seti Hazırlığı -----
 df = pd.read_csv(data_path)
