@@ -53,8 +53,8 @@ Proje, her bir bileşenin sorumluluğunu net bir şekilde ayıran modüler bir y
 
 1.  **Projeyi klonlayın:**
     ```bash
-    git clone <proje-repo-url>
-    cd <proje-klasor-adi>
+    git clone https://github.com/SahinMuhammetAbdullah/hybrid-url-classification.git
+    cd hybrid-url-classification
     ```
 
 2.  **Sanal ortam oluşturun (önerilir):**

@@ -54,8 +54,8 @@ The project has a modular structure that clearly separates the responsibilities 
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
-    cd <your-repository-name>
+    git clone https://github.com/SahinMuhammetAbdullah/hybrid-url-classification.git
+    cd hybrid-url-classification
     ```
 
 2.  **Create a virtual environment (recommended):**
