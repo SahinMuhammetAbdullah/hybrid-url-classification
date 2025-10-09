@@ -6,6 +6,7 @@
 *.png
 *test*.md
 !test_suite_comments.md
+!test_result.md
 
 __pycache__/
 catboost_info/
