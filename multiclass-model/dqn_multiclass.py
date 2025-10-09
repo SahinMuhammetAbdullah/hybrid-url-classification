@@ -71,12 +71,12 @@ for checkpoint in checkpoint_intervals:
     evaluate_model(model, X_test, y_test, target_names=[str(i) for i in url_types])
     current_steps = checkpoint
 
-model.save("multiclass_dqn_model")
+model.save("multiclass-model-save/multiclass_dqn_model")
 
 print("\n--- Eğitim Tamamlandı: Son Test ---")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DQN.load("multiclass_dqn_model", device=device)
+model = DQN.load("multiclass-model-save/multiclass_dqn_model", device=device)
 
 y_pred = []
 for obs in X_test:
