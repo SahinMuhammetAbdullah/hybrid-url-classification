@@ -45,12 +45,12 @@ def load_data_for_test(data_path):
     return X_test, y_multi_test, y_bin_test
 
 
-def run_hybrid_prediction_filtered(
-    X_test, y_true_multiclass, y_true_binary, binary_model, dqn_multiclass_model, multiclass_label_map, binary_model_type
+def run_hybrid_prediction(
+    X_test, y_true_multiclass, binary_model, dqn_multiclass_model, multiclass_label_map, binary_model_type
 ):
     """
-    İki aşamalı tahmin boru hattını çalıştırır ve filtreler.
-    Katman 2'ye (DQN) sadece Binary Modelin 'Zararlı' dediği VE GERÇEKTE 'Zararlı' OLAN veriler (True Positives) dahil edilir.
+    İki aşamalı tahmin boru hattını çalıştırır.
+    Katman 2'ye (DQN) sadece Binary Modelin 'Zararlı' dediği veriler (TP ve FP) dahil edilir.
     """
     final_predictions = []
     dqn_device = dqn_multiclass_model.device
@@ -58,7 +58,6 @@ def run_hybrid_prediction_filtered(
     for i in range(len(X_test)):
         feature_row_df = X_test.iloc[[i]]
         true_multiclass_label = y_true_multiclass[i]
-        true_binary_label = y_true_binary[i]
         
         # --- AŞAMA 1: İKİLİ (BINARY) TAHMİN ---
         if binary_model_type == "ml":
@@ -71,35 +70,29 @@ def run_hybrid_prediction_filtered(
             binary_pred, _ = binary_model.predict(feature_values_np, deterministic=True)
             # binary_pred: 0 (benign) veya 1 (malicious)
         
-        # --- AŞAMA 2: FİLTRELEME VE NİHAİ TAHMİN ---
+        # --- AŞAMA 2: NİHAİ TAHMİN (Filtreleme Yok) ---
         
-        if true_binary_label == 0:
-            # GERÇEKTE ZARARSIZ (Benign): Tahmin ne olursa olsun, nihai sonuç doğru etiket olan 'benign' olarak alınır.
-            # Bu, False Positive ve True Negative durumlarını doğru bir şekilde yansıtır.
-            final_predictions.append(true_multiclass_label) # true_multiclass_label = 'benign'
+        if binary_pred == 0:
+            # Binary model 'Zararsız' (Benign) dediyse, sonuç direkt 'benign' olur.
+            # (Bu, True Negatives ve False Negatives durumlarını kapsar.)
+            final_predictions.append("benign")
 
-        elif true_binary_label == 1:
-            # GERÇEKTE ZARARLI (Malicious):
-            if binary_pred == 1:
-                # True Positive (TP) Durumu: Binary model doğru bildi, DQN'e gönderiliyor.
-                feature_values_np = feature_row_df.values.flatten()
-                obs_tensor = (
-                    torch.tensor(feature_values_np, dtype=torch.float32)
-                    .unsqueeze(0)
-                    .to(dqn_device)
-                )
-                with torch.no_grad():
-                    q_values = dqn_multiclass_model.q_net(obs_tensor)
-                    action = torch.argmax(q_values, dim=1).item()
+        elif binary_pred == 1:
+            # Binary model 'Zararlı' (Malicious) dediyse (TP veya FP), DQN'e gönderiliyor.
+            feature_values_np = feature_row_df.values.flatten()
+            obs_tensor = (
+                torch.tensor(feature_values_np, dtype=torch.float32)
+                .unsqueeze(0)
+                .to(dqn_device)
+            )
+            with torch.no_grad():
+                q_values = dqn_multiclass_model.q_net(obs_tensor)
+                action = torch.argmax(q_values, dim=1).item()
 
-                multiclass_label = multiclass_label_map.get(
-                    str(action), "unknown_malicious"
-                )
-                final_predictions.append(multiclass_label)
-            else:
-                # False Negative (FN) Durumu: Binary model yanlışlıkla Zararsız (0) dedi.
-                # Bu veri DQN'e gitmediği için nihai tahmin 'benign' (yanlış) olarak kaydedilir.
-                final_predictions.append("benign")
+            multiclass_label = multiclass_label_map.get(
+                str(action), "unknown_malicious"
+            )
+            final_predictions.append(multiclass_label)
 
     return final_predictions
 
@@ -181,6 +174,7 @@ def main(binary_choice):
         with open(LABEL_MAP_PATH, "r") as f:
             multiclass_label_map = json.load(f)
 
+        # Test verisini yüklerken y_bin_test'i hala alıyoruz, ancak run_hybrid_prediction'da kullanmıyoruz.
         X_test, y_multi_test, y_bin_test = load_data_for_test(DATA_PATH)
         print("Tüm bileşenler başarıyla yüklendi.")
     except FileNotFoundError as e:
@@ -191,12 +185,13 @@ def main(binary_choice):
         return
 
     print(
-        f"\nÇalıştırılıyor: Filtreli Hibrit Boru Hattı (Binary: {binary_choice.upper()}, Yalnızca Gerçek Zararlı Doğru Pozitifler DQN'e)..."
+        f"\nÇalıştırılıyor: Filtresiz Hibrit Boru Hattı (Binary: {binary_choice.upper()}, Tüm Zararlı Tahminler DQN'e)..."
     )
-    final_predictions = run_hybrid_prediction_filtered(
+    
+    # Yeni run_hybrid_prediction fonksiyonu çağrılıyor
+    final_predictions = run_hybrid_prediction(
         X_test,
         y_multi_test,
-        y_bin_test,
         binary_model,
         dqn_multiclass_model,
         multiclass_label_map,
@@ -206,13 +201,13 @@ def main(binary_choice):
     evaluate_and_plot(
         y_multi_test,
         final_predictions,
-        f"Filtreli Uçtan Uca Performans (Binary: {binary_choice.upper()})",
+        f"Filtresiz Uçtan Uca Performans (Binary: {binary_choice.upper()})",
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Gerçek Pozitif filtrelemeli hibrit URL sınıflandırma sistemini değerlendirir."
+        description="Filtresiz hibrit URL sınıflandırma sistemini değerlendirir (İkili modelden 'Zararlı' çıkan her şey DQN'e gider)."
     )
     parser.add_argument(
         "--binary_model",

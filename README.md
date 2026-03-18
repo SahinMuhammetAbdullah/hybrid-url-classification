@@ -1,11 +1,10 @@
-
-# Hybrid URL Classification System (ML + RL)
+# Hybrid URL Classification System
 
 This project implements a two-stage hybrid system for URL classification. It utilizes both traditional Machine Learning (ML) models and a Deep Reinforcement Learning (DRL) agent for binary classification (benign vs. malicious). If a URL is identified as malicious, another DRL agent determines its specific threat type (e.g., phishing, malware, defacement, spam).
 
 ## Key Features
 
-- **Modular Model Training**: Each classifier (RF, SVM, XGBoost, DQN) is trained with its own dedicated script, providing flexibility and ease of management.
+- **Modular Model Training**: Each classifier (Random Forest) is trained with its own dedicated script, providing flexibility and ease of management.
 - **Two-Stage Hybrid Architecture**:
   1.  **Binary Classifier**: Determines if a URL is `benign` or `malicious`. Four different models are trained for this stage.
   2.  **Multi-Class Classifier**: For URLs labeled as malicious, a Deep Q-Network (DQN) agent classifies the specific type of threat.
@@ -21,18 +20,10 @@ The project has a modular structure that clearly separates the responsibilities 
 │   └── cleaned_feature_data.csv        # Dataset for training and testing
 │
 ├── binary-model/                       # Training scripts for BINARY classifiers
-│   ├── dqn-binary/
-│   │   ├── dqn_binary.py               #   - Binary DQN training script
-│   │   └── env_url_type.py             #   - Gym environment for Binary DQN
-│   ├── rf_binary.py                    #   - Random Forest training script
-│   ├── svm_binary.py                   #   - SVM training script
-│   └── xgb_binary.py                   #   - XGBoost training script
+│   └── rf_binary.py                    #   - Random Forest training script
 │
 ├── binary-model-save/                  # Directory for saved TRAINED BINARY models
-│   ├── binary_dqn_model.zip
-│   ├── rf_binary_model.pkl
-│   ├── svm_binary_model.pkl
-│   └── xgb_binary_model.pkl
+│   └── rf_binary_model.pkl
 │
 ├── multiclass-model/                   # Training scripts for the MULTI-CLASS classifier
 │   ├── dqn_model.py                    #   - Multiclass DQN training script
@@ -85,15 +76,6 @@ In this stage, you can train the four different binary classifiers by running ea
 ```bash
 # To train the Random Forest model:
 python binary-model/rf_binary.py
-
-# To train the SVM model:
-python binary-model/svm_binary.py
-
-# To train the XGBoost model:
-python binary-model/xgb_binary.py
-
-# To train the Binary DQN model:
-python binary-model/dqn-binary/dqn_binary.py
 ```
 
 ### Step 2: Train the Multi-Class Classifier
@@ -116,15 +98,4 @@ After all models are trained, you can test the end-to-end performance of the sys
     ```bash
     python test/system_test.py --binary_model rf
     ```
-
-*   To test the **Binary DQN + Multiclass DQN** hybrid structure:
-    ```bash
-    python test/system_test.py --binary_model dqn
-    ```
-
-*   To test the **XGBoost + DQN** hybrid structure:
-    ```bash
-    python test/system_test.py --binary_model xgb
-    ```
-
 These commands will load the selected binary classifier and the multi-class DQN model to perform a full performance analysis and display the results (metrics, confusion matrices).

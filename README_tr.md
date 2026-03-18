@@ -20,18 +20,10 @@ Proje, her bir bileşenin sorumluluğunu net bir şekilde ayıran modüler bir y
 │   └── cleaned_feature_data.csv        # Eğitim ve test için kullanılan veri seti
 │
 ├── binary-model/                       # İKİLİ sınıflandırıcıların eğitim betikleri
-│   ├── dqn-binary/
-│   │   ├── dqn_binary.py               #   - Binary DQN eğitim betiği
-│   │   └── env_url_type.py             #   - Binary DQN için Gym ortamı
-│   ├── rf_binary.py                    #   - Random Forest eğitim betiği
-│   ├── svm_binary.py                   #   - SVM eğitim betiği
-│   └── xgb_binary.py                   #   - XGBoost eğitim betiği
+│   └── rf_binary.py                    #   - Random Forest eğitim betiği
 │
 ├── binary-model-save/                  # EĞİTİLMİŞ İKİLİ modellerin kaydedildiği yer
-│   ├── binary_dqn_model.zip
-│   ├── rf_binary_model.pkl
-│   ├── svm_binary_model.pkl
-│   └── xgb_binary_model.pkl
+│   └── rf_binary_model.pkl
 │
 ├── multiclass-model/                   # ÇOK SINIFLI sınıflandırıcının eğitim betikleri
 │   ├── dqn_model.py                    #   - Multiclass DQN eğitim betiği
@@ -85,14 +77,6 @@ Bu aşamada, `binary-model/` klasöründeki her bir betiği ayrı ayrı çalış
 # Random Forest modelini eğitmek için:
 python binary-model/rf_binary.py
 
-# SVM modelini eğitmek için:
-python binary-model/svm_binary.py
-
-# XGBoost modelini eğitmek için:
-python binary-model/xgb_binary.py
-
-# Binary DQN modelini eğitmek için:
-python binary-model/dqn-binary/dqn_binary.py
 ```
 
 ### Adım 2: Çok Sınıflı Sınıflandırıcıyı Eğitme
@@ -114,16 +98,6 @@ Tüm modeller eğitildikten sonra, `test/system_test.py` betiğini kullanarak si
 *   **Random Forest + DQN** hibrit yapısını test etmek için:
     ```bash
     python test/system_test.py --binary_model rf
-    ```
-
-*   **Binary DQN + Multiclass DQN** hibrit yapısını test etmek için:
-    ```bash
-    python test/system_test.py --binary_model dqn
-    ```
-
-*   **XGBoost + DQN** hibrit yapısını test etmek için:
-    ```bash
-    python test/system_test.py --binary_model xgb
     ```
 
 Bu komutlar, seçilen ikili sınıflandırıcıyı ve çok sınıflı DQN modelini yükleyerek tam bir performans analizi yapar ve sonuçları (metrikler, karmaşıklık matrisleri) gösterir.
