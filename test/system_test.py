@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 MALICIOUS_LABELS = ["phishing", "malware", "defacement", "spam"]
 TARGET_COLUMN = "URL_Type_obf_Type"
 DATA_PATH = "data/cleaned_feature_data.csv"
-MULTICLASS_DQN_PATH = "multiclass-model-save/multiclass_dqn_model1"
+MULTICLASS_DQN_PATH = "multiclass-model-save/multiclass_dqn_model"
 LABEL_MAP_PATH = "multiclass-model-save/multiclass_labels.json"
 
 
@@ -51,38 +51,36 @@ def load_data_for_test(data_path):
 def run_hybrid_prediction(
     X_test, binary_model, dqn_multiclass_model, multiclass_label_map, binary_model_type
 ):
-    """Runs the two-tiered prediction pipeline (end-to-end)."""
-    final_predictions = []
-    dqn_device = dqn_multiclass_model.device
+    # 1. Adım: Tüm veriyi tek seferde Binary Classifier'dan geçirin
+    if binary_model_type == "ml":
+        binary_preds = binary_model.predict(X_test)
+    else:
+        # DQN binary ise toplu tahmin (deterministic=True)
+        binary_preds, _ = binary_model.predict(X_test.values, deterministic=True)
 
-    for i in range(len(X_test)):
-        if binary_model_type == "ml":
-            feature_row_df = X_test.iloc[[i]]
-            binary_pred = binary_model.predict(feature_row_df)[0]
-        else:
-            feature_values_np = X_test.iloc[i].values
-            binary_pred, _ = binary_model.predict(feature_values_np, deterministic=True)
+    # Sonuçları tutacak liste (varsayılan benign dolduralım)
+    final_predictions = np.array(["benign"] * len(X_test), dtype=object)
+    
+    # 2. Adım: Malicious (1) olarak işaretlenenlerin indekslerini bulun
+    malicious_indices = np.where(binary_preds == 1)[0]
+    
+    if len(malicious_indices) > 0:
+        # Sadece malicious olan satırları seçin
+        malicious_features = X_test.iloc[malicious_indices].values
+        
+        # 3. Adım: DQN Multiclass tahminini toplu (Batch) yapın
+        dqn_device = dqn_multiclass_model.device
+        obs_tensor = torch.tensor(malicious_features, dtype=torch.float32).to(dqn_device)
+        
+        with torch.no_grad():
+            q_values = dqn_multiclass_model.q_net(obs_tensor)
+            actions = torch.argmax(q_values, dim=1).cpu().numpy()
+        
+        # Etiketleri haritalayın
+        malicious_labels = [multiclass_label_map.get(str(a), "unknown_malicious") for a in actions]
+        final_predictions[malicious_indices] = malicious_labels
 
-        if binary_pred == 0:
-            final_predictions.append("benign")
-        else:
-            feature_values_np = X_test.iloc[i].values
-            obs_tensor = (
-                torch.tensor(feature_values_np, dtype=torch.float32)
-                .unsqueeze(0)
-                .to(dqn_device)
-            )
-            with torch.no_grad():
-                q_values = dqn_multiclass_model.q_net(obs_tensor)
-                action = torch.argmax(q_values, dim=1).item()
-
-            multiclass_label = multiclass_label_map.get(
-                str(action), "unknown_malicious"
-            )
-            final_predictions.append(multiclass_label)
-
-    return final_predictions
-
+    return final_predictions.tolist()
 
 # --- 3. Değerlendirme Fonksiyonu ---
 def evaluate_and_plot(y_true, y_pred, title):
